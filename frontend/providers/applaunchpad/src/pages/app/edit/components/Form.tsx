@@ -47,8 +47,8 @@ import QuotaBox from './QuotaBox';
 import type { StoreType } from './StoreModal';
 import styles from './index.module.scss';
 import { mountPathToConfigMapKey, useCopyData } from '@/utils/tools';
-import { useQuery } from '@tanstack/react-query';
 import { WorkspaceQuotaItem } from '@/types/workspace';
+import { useQuotaStore } from '@/store/quota';
 
 const CustomAccessModal = dynamic(() => import('./CustomAccessModal'));
 const ConfigmapModal = dynamic(() => import('./ConfigmapModal'));
@@ -67,7 +67,7 @@ const Form = ({
   pxVal,
   refresh,
   isAdvancedOpen,
-  exceededQuotas
+  resourceRequirements
 }: {
   formHook: UseFormReturn<AppEditType, any>;
   already: boolean;
@@ -76,7 +76,13 @@ const Form = ({
   pxVal: number;
   refresh: boolean;
   isAdvancedOpen: boolean;
-  exceededQuotas: WorkspaceQuotaItem[];
+  resourceRequirements: {
+    cpu: number;
+    memory: number;
+    gpu: number;
+    nodeport: number;
+    storage: number;
+  };
 }) => {
   if (!formHook) return null;
   const { t } = useTranslation();
@@ -169,13 +175,14 @@ const Form = ({
   const [configEdit, setConfigEdit] = useState<ConfigMapType>();
   const [storeEdit, setStoreEdit] = useState<StoreType>();
   const { isOpen: isEditEnvs, onOpen: onOpenEditEnvs, onClose: onCloseEditEnvs } = useDisclosure();
+  const quotaStore = useQuotaStore();
 
-  // For quota calculation in fields
-  const { userQuota, loadUserQuota } = useUserStore();
-  useQuery(['getUserQuota'], loadUserQuota);
+  const exceededQuotas = useMemo(() => {
+    return quotaStore.checkExceededQuotas(resourceRequirements);
+  }, [quotaStore, resourceRequirements]);
 
   const storageQuotaLeft = useMemo(() => {
-    const storageQuota = userQuota?.find((item) => item.type === 'storage');
+    const storageQuota = quotaStore.userQuota?.find((item) => item.type === 'storage');
     if (!storageQuota) return 0;
 
     const newlyUsedStorage =
@@ -186,7 +193,7 @@ const Form = ({
       (storageQuota.limit - storageQuota.used) / resourcePropertyMap.storage.scale -
       newlyUsedStorage
     );
-  }, [userQuota, existingStores, storeList]);
+  }, [quotaStore.userQuota, existingStores, storeList]);
 
   // listen scroll and set activeNav
   useEffect(() => {

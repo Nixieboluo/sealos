@@ -26,6 +26,7 @@ import * as yaml from 'js-yaml';
 import type { AppConfigType } from '@/types';
 import Script from 'next/script';
 import { GTMScript } from '@sealos/gtm';
+import { InsufficientQuotaDialog } from '@/components/InsufficientQuotaDialog';
 
 //Binding events.
 Router.events.on('routeChangeStart', () => NProgress.start());
@@ -194,6 +195,7 @@ const MyApp = ({ Component, pageProps, config }: AppProps & AppOwnProps) => {
       <QueryClientProvider client={queryClient}>
         <ChakraProvider theme={theme}>
           <Component {...pageProps} />
+          <InsufficientQuotaDialog />
           <ConfirmChild />
           <Loading loading={loading} />
         </ChakraProvider>

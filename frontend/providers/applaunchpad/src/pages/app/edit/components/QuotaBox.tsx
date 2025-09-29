@@ -4,8 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'next-i18next';
 import { MyTooltip } from '@sealos/ui';
 
-import { useUserStore } from '@/store/user';
 import { resourcePropertyMap } from '@/constants/resource';
+import { useQuotaStore } from '@/store/quota';
 
 const sourceMap = {
   cpu: {
@@ -31,8 +31,8 @@ const sourceMap = {
 const QuotaBox = () => {
   const theme = useTheme();
   const { t } = useTranslation();
-  const { userQuota, loadUserQuota } = useUserStore();
-  useQuery(['getUserQuota'], loadUserQuota);
+  const { userQuota, fetchUserQuota, setUserQuota } = useQuotaStore();
+  useQuery(['fetchUserQuota'], () => fetchUserQuota().then((quota) => setUserQuota(quota)));
 
   const quotaList = useMemo(() => {
     if (!userQuota) return [];
