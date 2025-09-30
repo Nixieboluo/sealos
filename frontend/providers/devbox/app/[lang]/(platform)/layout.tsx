@@ -19,6 +19,7 @@ import { cleanSession, setSessionToSessionStorage } from '@/utils/user';
 
 import { Toaster } from '@sealos/shadcn-ui/sonner';
 import RouteHandlerProvider from '@/components/providers/MyRouteHandlerProvider';
+import { InsufficientQuotaDialog } from '@/components/dialogs/InsufficientQuotaDialog';
 
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -142,6 +143,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
     <RouteHandlerProvider>
       <ConfirmChild />
       <Toaster />
+      <InsufficientQuotaDialog />
       {children}
     </RouteHandlerProvider>
   );

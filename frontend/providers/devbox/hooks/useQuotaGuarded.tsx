@@ -1,5 +1,5 @@
-import { useQuotaStore } from '@/store/quota';
-import { useUserStore } from '@/store/user';
+import { useQuotaStore } from '@/stores/quota';
+import { useUserStore } from '@/stores/user';
 import { WorkspaceQuotaItemType } from '@/types/workspace';
 
 export type InvokeOptions = {

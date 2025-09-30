@@ -3,12 +3,11 @@ import request from '@/service/request';
 import useSessionStore from '@/store/session';
 import { Box, Flex, Spinner, useToast } from '@chakra-ui/react';
 import { useQuery } from '@tanstack/react-query';
-import { use, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { createSealosApp, sealosApp } from 'sealos-desktop-sdk/app';
 import styles from './index.module.scss';
 import { getEnv } from '@/api/terminal';
-import { WorkspaceQuotaItem } from '@/types/workspace';
-import { InsufficientQuotaDialog } from '@/components/InsufficientQuotaDialog';
+import { useQuotaStore } from '@/store/quota';
 
 type ServiceEnv = {
   site: string;
@@ -16,59 +15,90 @@ type ServiceEnv = {
 
 export default function Index(props: ServiceEnv) {
   const { setSession, isUserLogin, session } = useSessionStore();
+  const quotaStore = useQuotaStore();
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [workspaceQuota, setWorkspaceQuota] = useState<WorkspaceQuotaItem[] | null>(null);
-  const [exceededDialogOpen, setExceededDialogOpen] = useState(false);
+  const [quotaChecked, setQuotaChecked] = useState(false);
+  const previousDialogOpenRef = useRef(quotaStore.exceededPromptOpen);
 
   const toast = useToast();
-
-  const loadWorkspaceQuota = async () => {
-    const res = await sealosApp.getWorkspaceQuota();
-    setWorkspaceQuota(res.quota);
-  };
 
   useEffect(() => {
     return createSealosApp();
   }, []);
 
+  // Initialize app and load quota once
   useEffect(() => {
     const initApp = async () => {
       try {
         const result = await sealosApp.getSession();
         setSession(result);
+
+        // Load quota only once on initial mount
+        const quota = await sealosApp.getWorkspaceQuota();
+        quotaStore.setUserQuota(quota.quota);
+        setQuotaChecked(true);
       } catch (error) {
         console.log('App is not running in desktop');
+        setQuotaChecked(true); // Still mark as checked even if failed
       }
     };
     initApp();
-    loadWorkspaceQuota();
-  }, [setSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   const { data: envData, isSuccess: envQuerySuccess } = useQuery({
     queryFn: () => getEnv(),
     queryKey: ['env']
   });
 
+  // Calculate exceeded quotas
   const exceededQuotas = useMemo(() => {
-    if (!workspaceQuota || !envQuerySuccess) return null;
+    if (!envQuerySuccess || !quotaChecked || quotaStore.userQuota.length === 0) return null;
 
     const quotaRequest = {
       cpu: envData.data.data.CPU_REQUIREMENT,
       memory: envData.data.data.MEMORY_REQUIREMENT,
-      traffic: session.subscription.type === 'PAYG' ? 0 : 1
+      traffic: session?.subscription?.type === 'PAYG' ? 0 : 1
     };
 
-    const exceededItems = workspaceQuota.filter((item) => {
-      if (!(item.type in quotaRequest)) return false;
+    return quotaStore.checkExceededQuotas(quotaRequest);
+  }, [quotaStore.userQuota, envData, envQuerySuccess, session, quotaChecked]);
 
-      if (item.limit - item.used < quotaRequest[item.type as keyof typeof quotaRequest]!) {
-        return true;
-      }
-    });
+  // Show dialog when quotas are exceeded
+  useEffect(() => {
+    if (exceededQuotas && exceededQuotas.length > 0 && quotaChecked) {
+      quotaStore.setExceededQuotas(exceededQuotas);
+      quotaStore.setExceededPromptOpen(true);
+      quotaStore.setExceededPromptControls(false);
+    }
+  }, [exceededQuotas, quotaChecked]);
 
-    return exceededItems;
-  }, [workspaceQuota, envData, envQuerySuccess, session]);
+  // Monitor dialog close and reload quota
+  useEffect(() => {
+    const currentDialogOpen = quotaStore.exceededPromptOpen;
+    const previousDialogOpen = previousDialogOpenRef.current;
+
+    // Dialog was closed (went from true to false)
+    if (previousDialogOpen && !currentDialogOpen) {
+      setQuotaChecked(false);
+
+      // Reload quota after dialog closes
+      const reloadQuota = async () => {
+        try {
+          const quota = await sealosApp.getWorkspaceQuota();
+          quotaStore.setUserQuota(quota.quota);
+          setQuotaChecked(true);
+        } catch (error) {
+          console.error('Failed to reload quota:', error);
+          setQuotaChecked(true);
+        }
+      };
+      reloadQuota();
+    }
+
+    previousDialogOpenRef.current = currentDialogOpen;
+  }, [quotaStore.exceededPromptOpen]);
 
   useQuery(['applyApp'], () => request.post('/api/apply'), {
     onSuccess: (res) => {
@@ -105,14 +135,8 @@ export default function Index(props: ServiceEnv) {
       }
     },
     refetchInterval: url === '' ? 500 : false,
-    enabled: workspaceQuota !== null && exceededQuotas?.length === 0
+    enabled: quotaChecked && (!exceededQuotas || exceededQuotas.length === 0)
   });
-
-  useEffect(() => {
-    if (exceededQuotas && exceededQuotas.length > 0) {
-      setExceededDialogOpen(true);
-    }
-  }, [exceededQuotas]);
 
   if (isLoading) {
     return (
@@ -128,18 +152,6 @@ export default function Index(props: ServiceEnv) {
             />
           </Box>
         </Box>
-
-        <InsufficientQuotaDialog
-          items={exceededQuotas ?? []}
-          open={exceededDialogOpen}
-          showControls={false}
-          onOpenChange={(open) => {
-            // Refresh quota on open change
-            loadWorkspaceQuota();
-            setExceededDialogOpen(open);
-          }}
-          onConfirm={() => {}}
-        />
       </Flex>
     );
   }

@@ -16,7 +16,6 @@ import {
   Divider
 } from '@chakra-ui/react';
 import { WarningIcon } from '@chakra-ui/icons';
-import { useTranslation } from 'next-i18next';
 import { ExceededWorkspaceQuotaItem, WorkspaceQuotaItemType } from '@/types/workspace';
 import { resourcePropertyMap } from '@/constants/resource';
 import css from './InsufficientQuotaDialogView.module.css';
@@ -40,7 +39,34 @@ export function InsufficientQuotaDialogView({
   onOpenCostCenter,
   showRequirements
 }: InsufficientQuotaDialogViewProps) {
-  const { t } = useTranslation();
+  const t = (key: string) => {
+    const dict = {
+      en: {
+        cpu: 'CPU',
+        gpu: 'GPU',
+        memory: 'Memory',
+        storage: 'Storage',
+        nodeport: 'Port',
+        traffic: 'Traffic',
+        'insufficient_quota_dialog.alert-title':
+          "We can't create your app right now. You've used all of your available resources.",
+        'insufficient_quota_dialog.cancel': 'Cancel',
+        'insufficient_quota_dialog.confirm': 'Confirm',
+        'insufficient_quota_dialog.please_upgrade_plan.1': 'Please ',
+        'insufficient_quota_dialog.please_upgrade_plan.2': 'upgrade your plan',
+        'insufficient_quota_dialog.please_upgrade_plan.3':
+          ' or delete unused apps occupying resources.',
+        'insufficient_quota_dialog.quota_available': 'Available: ',
+        'insufficient_quota_dialog.quota_in_use': 'In use: ',
+        'insufficient_quota_dialog.quota_total': 'Total: ',
+        'insufficient_quota_dialog.quota_required': 'Required: ',
+        'insufficient_quota_dialog.title': 'Insufficient Resources'
+      }
+    } as const;
+
+    const trans = dict.en;
+    return Object.hasOwn(trans, key) ? trans[key as unknown as keyof typeof trans] : key;
+  };
 
   return (
     <Modal isOpen={open} onClose={() => onOpenChange(false)} isCentered>

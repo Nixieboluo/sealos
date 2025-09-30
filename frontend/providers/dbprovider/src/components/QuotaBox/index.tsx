@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'next-i18next';
 import { MyTooltip } from '@sealos/ui';
 
-import { useUserStore } from '@/store/user';
+import { useQuotaStore } from '@/store/quota';
 import { resourcePropertyMap } from '@/constants/resource';
 
 const sourceMap = {
@@ -31,8 +31,12 @@ const sourceMap = {
 const QuotaBox = () => {
   const theme = useTheme();
   const { t } = useTranslation();
-  const { userQuota, loadUserQuota } = useUserStore();
-  useQuery(['getUserQuota'], loadUserQuota);
+  const { userQuota, fetchUserQuota, setUserQuota } = useQuotaStore();
+  useQuery(['getUserQuota'], async () => {
+    const quota = await fetchUserQuota();
+    setUserQuota(quota);
+    return quota;
+  });
 
   const quotaList = useMemo(() => {
     if (!userQuota) return [];

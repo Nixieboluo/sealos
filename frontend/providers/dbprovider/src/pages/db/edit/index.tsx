@@ -7,6 +7,7 @@ import { useDBStore } from '@/store/db';
 import { useGlobalStore } from '@/store/global';
 import { DBVersionMap } from '@/store/static';
 import { useUserStore } from '@/store/user';
+import { useQuotaStore } from '@/store/quota';
 import type { YamlItemType } from '@/types';
 import type { DBEditType } from '@/types/db';
 import { adaptDBForm } from '@/utils/adapt';
@@ -34,7 +35,7 @@ import { getBackups, deleteBackup } from '@/api/backup';
 import StopBackupModal from '../detail/components/StopBackupModal';
 import { resourcePropertyMap } from '@/constants/resource';
 import { distributeResources } from '@/utils/database';
-import { InsufficientQuotaDialog } from '@/components/InsufficientQuotaDialog';
+import { useQuotaGuarded } from '@/hooks/useQuotaGuarded';
 const ErrorModal = dynamic(() => import('@/components/ErrorModal'));
 
 const defaultEdit = {
@@ -45,7 +46,8 @@ const defaultEdit = {
 const EditApp = ({ dbName, tabType }: { dbName?: string; tabType?: 'form' | 'yaml' }) => {
   const { t } = useTranslation();
   const router = useRouter();
-  const { checkExceededQuotas, session } = useUserStore();
+  const { session } = useUserStore();
+  const quotaStore = useQuotaStore();
   const [yamlList, setYamlList] = useState<YamlItemType[]>([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [errorCode, setErrorCode] = useState<ResponseCode>();
@@ -63,8 +65,6 @@ const EditApp = ({ dbName, tabType }: { dbName?: string; tabType?: 'form' | 'yam
     onClose: onStopBackupClose
   } = useDisclosure();
   const [pendingFormData, setPendingFormData] = useState<DBEditType | null>(null);
-
-  const [isInsufficientQuotaDialogOpen, setIsInsufficientQuotaDialogOpen] = useState(false);
 
   const { title, applyBtnText, applyMessage, applySuccess, applyError } = editModeMap(!!dbName);
   const { openConfirm, ConfirmChild } = useConfirm({
@@ -96,7 +96,8 @@ const EditApp = ({ dbName, tabType }: { dbName?: string; tabType?: 'form' | 'yam
     setForceUpdate(!forceUpdate);
   });
 
-  const exceededQuotas = useMemo(() => {
+  // Calculate resource requirements for quota check
+  const resourceRequirements = useMemo(() => {
     const oldReplicas = formHook.formState.defaultValues?.replicas ?? 0;
     const newReplicas = realTimeForm.current.replicas;
 
@@ -168,20 +169,21 @@ const EditApp = ({ dbName, tabType }: { dbName?: string; tabType?: 'form' | 'yam
       )
     };
 
-    return checkExceededQuotas({
+    return {
       cpu: isEdit ? newResources.cpu - oldResources.cpu : newResources.cpu,
       memory: isEdit ? newResources.memory - oldResources.memory : newResources.memory,
       storage: isEdit ? newResources.storage - oldResources.storage : newResources.storage,
       ...(session?.subscription?.type === 'PAYG' ? {} : { traffic: 1 })
-    });
-  }, [checkExceededQuotas, formHook.formState, isEdit, session]);
+    };
+  }, [formHook.formState, isEdit, session]);
 
+  // Load user quota on page load for real-time validation during form editing
   useEffect(() => {
     if (!dbName) {
       const hour = Math.floor(Math.random() * 10) + 14;
       formHook.setValue('autoBackup.hour', hour.toString().padStart(2, '0'));
     }
-  }, []);
+  }, [dbName, formHook]);
 
   const generateYamlList = (data: DBEditType) => {
     return [
@@ -413,23 +415,20 @@ const EditApp = ({ dbName, tabType }: { dbName?: string; tabType?: 'form' | 'yam
     }
   );
 
-  const confirmSubmit = () => {
-    setIsInsufficientQuotaDialogOpen(false);
-
-    formHook.handleSubmit(
-      (data) => handleBackupCheck(data),
-      (err) => submitError(err)
-    )();
-  };
-
-  const handleSubmit = () => {
-    if (exceededQuotas.length <= 0) {
-      confirmSubmit();
-      return;
+  // Use useQuotaGuarded to wrap submit handler for quota check on button click
+  const handleSubmit = useQuotaGuarded(
+    {
+      requirements: resourceRequirements,
+      allowContinue: false,
+      immediate: true
+    },
+    () => {
+      formHook.handleSubmit(
+        (data) => handleBackupCheck(data),
+        (err) => submitError(err)
+      )();
     }
-
-    setIsInsufficientQuotaDialogOpen(true);
-  };
+  );
   return (
     <>
       <Flex
@@ -454,7 +453,7 @@ const EditApp = ({ dbName, tabType }: { dbName?: string; tabType?: 'form' | 'yam
               allocatedStorage={allocatedStorage}
               pxVal={pxVal}
               cpuCores={cpu}
-              exceededQuotas={exceededQuotas}
+              resourceRequirements={resourceRequirements}
             />
           ) : (
             <Yaml yamlList={yamlList} pxVal={pxVal} />
@@ -509,14 +508,6 @@ const EditApp = ({ dbName, tabType }: { dbName?: string; tabType?: 'form' | 'yam
         }}
         onCancel={onStopBackupClose}
         dbName={pendingFormData?.dbName || ''}
-      />
-
-      <InsufficientQuotaDialog
-        items={exceededQuotas}
-        onOpenChange={setIsInsufficientQuotaDialogOpen}
-        open={isInsufficientQuotaDialogOpen}
-        onConfirm={() => {}}
-        showControls={false}
       />
     </>
   );

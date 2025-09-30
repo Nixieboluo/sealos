@@ -452,6 +452,7 @@
     },
     "quota_available": "Available: ",
     "quota_in_use": "In use: ",
+    "quota_required": "Required: ",
     "quota_total": "Total: ",
     "title": "Insufficient Resources"
   }

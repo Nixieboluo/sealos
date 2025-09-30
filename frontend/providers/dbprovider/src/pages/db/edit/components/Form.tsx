@@ -14,6 +14,7 @@ import {
 import { CpuSlideMarkList, MemorySlideMarkList } from '@/constants/editApp';
 import { resourcePropertyMap } from '@/constants/resource';
 import useEnvStore from '@/store/env';
+import { useQuotaStore } from '@/store/quota';
 import { DBVersionMap, INSTALL_ACCOUNT } from '@/store/static';
 import type { QueryType } from '@/types';
 import { AutoBackupType } from '@/types/backup';
@@ -181,16 +182,27 @@ const Form = ({
   pxVal,
   allocatedStorage,
   cpuCores,
-  exceededQuotas
+  resourceRequirements
 }: {
   formHook: UseFormReturn<DBEditType, any>;
   pxVal: number;
   allocatedStorage: number;
   cpuCores: number;
-  exceededQuotas: WorkspaceQuotaItem[];
+  resourceRequirements: {
+    cpu: number;
+    memory: number;
+    storage: number;
+    traffic?: number;
+  };
 }) => {
   if (!formHook) return null;
   const { t } = useTranslation();
+  const quotaStore = useQuotaStore();
+
+  // Calculate exceeded quotas for real-time display
+  const exceededQuotas = useMemo(() => {
+    return quotaStore.checkExceededQuotas(resourceRequirements);
+  }, [quotaStore, resourceRequirements]);
   const { SystemEnv } = useEnvStore();
   const router = useRouter();
   const { name } = router.query as QueryType;

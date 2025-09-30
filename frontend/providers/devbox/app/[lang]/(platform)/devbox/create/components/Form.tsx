@@ -19,7 +19,7 @@ import QuotaBox from './QuotaBox';
 import DevboxName from './DevboxName';
 
 import { Tabs, TabsList, TabsTrigger } from '@sealos/shadcn-ui/tabs';
-import { useUserStore } from '@/stores/user';
+import { useQuotaStore } from '@/stores/quota';
 import { resourcePropertyMap } from '@/constants/resource';
 import { sealosApp } from 'sealos-desktop-sdk/app';
 
@@ -27,25 +27,26 @@ interface FormProps {
   isEdit: boolean;
   oldDevboxData: DevboxEditTypeV2 | null;
   countGpuInventory: (type: string) => number;
+  resourceRequirements: {
+    cpu: number;
+    memory: number;
+    gpu: number;
+    nodeport: number;
+    traffic?: number;
+  };
 }
 
-const Form = ({ isEdit, countGpuInventory, oldDevboxData }: FormProps) => {
+const Form = ({ isEdit, countGpuInventory, resourceRequirements }: FormProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const userStore = useUserStore();
+  const quotaStore = useQuotaStore();
   const t = useTranslations();
   const { watch } = useFormContext<DevboxEditTypeV2>();
 
-  const formValues = watch();
+  // Calculate exceeded quotas based on resourceRequirements
   const exceededQuotas = useMemo(() => {
-    return userStore.checkExceededQuotas({
-      cpu: isEdit ? formValues.cpu - (oldDevboxData?.cpu ?? 0) : formValues.cpu,
-      memory: isEdit ? formValues.memory - (oldDevboxData?.memory ?? 0) : formValues.memory,
-      // [TODO] These two does not need to be considered currently
-      gpu: 0,
-      nodeport: 0
-    });
-  }, [formValues, userStore, isEdit, oldDevboxData]);
+    return quotaStore.checkExceededQuotas(resourceRequirements);
+  }, [quotaStore, resourceRequirements]);
 
   useEffect(() => {
     if (searchParams.get('scrollTo') === 'network') {

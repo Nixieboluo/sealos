@@ -22,6 +22,7 @@ import 'nprogress/nprogress.css';
 import Script from 'next/script';
 import App from 'next/app';
 import { useUserStore } from '@/store/user';
+import { InsufficientQuotaDialog } from '@/components/InsufficientQuotaDialog';
 
 //Binding events.
 Router.events.on('routeChangeStart', () => NProgress.start());
@@ -186,6 +187,7 @@ function MyApp({ Component, pageProps, customScripts }: AppProps & AppOwnProps) 
       <QueryClientProvider client={queryClient}>
         <ChakraProvider theme={theme}>
           <Component {...pageProps} />
+          <InsufficientQuotaDialog />
           <ConfirmChild />
           <Loading loading={loading} />
         </ChakraProvider>

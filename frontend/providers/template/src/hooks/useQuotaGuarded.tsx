@@ -1,5 +1,5 @@
 import { useQuotaStore } from '@/store/quota';
-import { useUserStore } from '@/store/user';
+import useSessionStore from '@/store/session';
 import { WorkspaceQuotaItemType } from '@/types/workspace';
 
 export type InvokeOptions = {
@@ -13,9 +13,10 @@ export type InvokeOptions = {
 
 export function useQuotaGuarded(options: InvokeOptions, callback: () => void) {
   const quotaStore = useQuotaStore();
-  const { session } = useUserStore();
+  const { getSession } = useSessionStore();
 
   return () => {
+    const session = getSession();
     const requirements = {
       ...options.requirements,
       traffic:

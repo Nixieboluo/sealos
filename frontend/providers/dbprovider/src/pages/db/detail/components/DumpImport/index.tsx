@@ -10,10 +10,9 @@ import {
 import { uploadFile } from '@/api/platform';
 import FileSelect from '@/components/FileSelect';
 import MyIcon from '@/components/Icon';
-import { InsufficientQuotaDialog } from '@/components/InsufficientQuotaDialog';
+import { useQuotaGuarded } from '@/hooks/useQuotaGuarded';
 import { DBDetailType } from '@/types/db';
 import { DumpForm } from '@/types/migrate';
-import { WorkspaceQuotaItem } from '@/types/workspace';
 import { assembleTranslate } from '@/utils/i18n-client';
 
 import {
@@ -34,10 +33,8 @@ import {
 import { AutoComplete, useMessage } from '@sealos/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'next-i18next';
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { FormProvider, useForm } from 'react-hook-form';
-import { useMemo } from 'react';
-import { useUserStore } from '@/store/user';
 import useEnvStore from '@/store/env';
 
 enum MigrateStatusEnum {
@@ -62,23 +59,9 @@ export default function DumpImport({ db }: { db?: DBDetailType }) {
   const [podName, setPodName] = useState('');
   const [fileProgressText, setFileProgressText] = useState('');
   const [forceUpdate, setForceUpdate] = useState(false);
-
-  // Quota related state
-  const { loadUserQuota, checkExceededQuotas, session } = useUserStore();
-  const [quotaLoaded, setQuotaLoaded] = useState(false);
-  const [exceededQuotas, setExceededQuotas] = useState<WorkspaceQuotaItem[]>([]);
-  const [exceededDialogOpen, setExceededDialogOpen] = useState(false);
   const { SystemEnv } = useEnvStore();
 
   const { getValues, setValue: setValue_ } = formHook;
-
-  // Load user quota on component mount
-  useEffect(() => {
-    if (quotaLoaded) return;
-
-    loadUserQuota();
-    setQuotaLoaded(true);
-  }, [quotaLoaded, loadUserQuota]);
 
   const setValue: typeof setValue_ = function (
     key: Parameters<typeof setValue>[0],
@@ -91,24 +74,21 @@ export default function DumpImport({ db }: { db?: DBDetailType }) {
     setForceUpdate(!forceUpdate);
   };
 
-  const checkQuotaAndProceed = () => {
-    // Check quota before showing confirmation dialog
-    const exceededQuotaItems = checkExceededQuotas({
-      cpu: SystemEnv.MIGRATION_JOB_CPU_REQUIREMENT,
-      memory: SystemEnv.MIGRATION_JOB_MEMORY_REQUIREMENT,
-      ...(session?.subscription?.type === 'PAYG' ? {} : { traffic: 1 })
-    });
-
-    if (exceededQuotaItems.length > 0) {
-      setExceededQuotas(exceededQuotaItems);
-      setExceededDialogOpen(true);
-      return;
-    } else {
-      setExceededQuotas([]);
-      // If quota is sufficient, show confirmation dialog
+  const checkQuotaAndProceed = useQuotaGuarded(
+    {
+      requirements: {
+        cpu: SystemEnv.MIGRATION_JOB_CPU_REQUIREMENT,
+        memory: SystemEnv.MIGRATION_JOB_MEMORY_REQUIREMENT,
+        storage: 1,
+        traffic: true
+      },
+      immediate: false,
+      allowContinue: false
+    },
+    () => {
       onOpen();
     }
-  };
+  );
 
   const handleConfirm = async () => {
     formHook.handleSubmit(
@@ -454,18 +434,6 @@ export default function DumpImport({ db }: { db?: DBDetailType }) {
             </ModalContent>
           )}
         </Modal>
-
-        <InsufficientQuotaDialog
-          items={exceededQuotas}
-          open={exceededDialogOpen}
-          onOpenChange={(open) => {
-            // Refresh quota on open change
-            loadUserQuota();
-            setExceededDialogOpen(open);
-          }}
-          onConfirm={() => {}}
-          showControls={false}
-        />
       </Box>
     </FormProvider>
   );

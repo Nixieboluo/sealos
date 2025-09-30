@@ -5,25 +5,31 @@ import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 
 import { cn } from '@sealos/shadcn-ui';
-import { useUserStore } from '@/stores/user';
+import { useQuotaStore } from '@/stores/quota';
 
 import { Progress } from '@sealos/shadcn-ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@sealos/shadcn-ui/tooltip';
 import { Card, CardContent, CardHeader } from '@sealos/shadcn-ui/card';
 import { resourcePropertyMap } from '@/constants/resource';
+import { WorkspaceQuotaItem } from '@/types/workspace';
 
 const QuotaBox = ({ className }: { className?: string }) => {
   const t = useTranslations();
-  const { userQuota, loadUserQuota } = useUserStore();
+  const quotaStore = useQuotaStore();
 
-  useQuery(['getUserQuota'], loadUserQuota);
+  useQuery(['getUserQuota'], () =>
+    quotaStore.fetchUserQuota().then((quota) => {
+      quotaStore.setUserQuota(quota);
+      return quota;
+    })
+  );
 
   const quotaList = useMemo(() => {
-    if (!userQuota) return [];
+    if (!quotaStore.userQuota) return [];
 
-    return userQuota
-      .filter((item) => item.limit > 0)
-      .map((item) => {
+    return quotaStore.userQuota
+      .filter((item: WorkspaceQuotaItem) => item.limit > 0)
+      .map((item: WorkspaceQuotaItem) => {
         const { limit, used, type } = item;
         const unit = resourcePropertyMap[type]?.unit;
         const Icon = resourcePropertyMap[type]?.icon;
@@ -35,9 +41,9 @@ ${t('remaining')}: ${((limit - used) / scale).toFixed(2)} ${unit}`;
 
         return { ...item, tip, Icon };
       });
-  }, [userQuota, t]);
+  }, [quotaStore.userQuota, t]);
 
-  if (userQuota.length === 0) return null;
+  if (quotaStore.userQuota.length === 0) return null;
 
   return (
     <Card className={cn('guide-cost', className)}>

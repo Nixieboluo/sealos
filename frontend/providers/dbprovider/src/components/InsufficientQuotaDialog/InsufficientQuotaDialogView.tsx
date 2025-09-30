@@ -19,7 +19,7 @@ import { WarningIcon } from '@chakra-ui/icons';
 import { useTranslation } from 'next-i18next';
 import { ExceededWorkspaceQuotaItem, WorkspaceQuotaItemType } from '@/types/workspace';
 import { resourcePropertyMap } from '@/constants/resource';
-import css from './InsufficientQuotaDialogView.module.css';
+import css from './index.module.css';
 
 interface InsufficientQuotaDialogViewProps {
   items: ExceededWorkspaceQuotaItem[];

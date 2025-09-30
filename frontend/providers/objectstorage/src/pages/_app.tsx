@@ -12,6 +12,8 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { EVENT_NAME } from 'sealos-desktop-sdk';
 import { sealosApp, createSealosApp } from 'sealos-desktop-sdk/app';
+import { InsufficientQuotaDialog } from '@/components/InsufficientQuotaDialog';
+
 function App({ Component, pageProps }: AppProps) {
   const [queryClient] = useState(
     new QueryClient({
@@ -97,6 +99,7 @@ function App({ Component, pageProps }: AppProps) {
       <Hydrate state={pageProps.dehydratedState}>
         <ChakraProvider theme={theme}>
           <Component {...pageProps} />
+          <InsufficientQuotaDialog />
         </ChakraProvider>
       </Hydrate>
     </QueryClientProvider>

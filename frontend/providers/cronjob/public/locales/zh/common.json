@@ -264,6 +264,7 @@
     },
     "quota_available": "可用: ",
     "quota_in_use": "使用中: ",
+    "quota_required": "所需: ",
     "quota_total": "总计: ",
     "title": "资源不足"
   }
