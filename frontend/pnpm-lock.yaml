@@ -2562,6 +2562,9 @@ importers:
       typescript:
         specifier: ^5.2.2
         version: 5.2.2
+      zod:
+        specifier: ^4.1.11
+        version: 4.1.11
       zustand:
         specifier: ^4.4.1
         version: 4.4.7(@types/react@18.2.37)(immer@10.0.3)(react@18.2.0)
@@ -2891,6 +2894,9 @@ importers:
       typescript:
         specifier: ^5.2.2
         version: 5.2.2
+      zod:
+        specifier: ^4.1.11
+        version: 4.1.11
       zustand:
         specifier: ^4.4.1
         version: 4.4.7(@types/react@18.2.37)(immer@9.0.21)(react@18.2.0)
@@ -30756,6 +30762,10 @@ packages:
 
   /zod@4.0.17:
     resolution: {integrity: sha512-1PHjlYRevNxxdy2JZ8JcNAw7rX8V9P1AKkP+x/xZfxB0K5FYfuV+Ug6P/6NVSR2jHQ+FzDDoDHS04nYUsOIyLQ==}
+    dev: false
+
+  /zod@4.1.11:
+    resolution: {integrity: sha512-WPsqwxITS2tzx1bzhIKsEs19ABD5vmCVa4xBo2tq/SrV4RNZtfws1EnCWQXM6yh8bD08a1idvkB5MZSBiZsjwg==}
     dev: false
 
   /zod@4.1.9:
